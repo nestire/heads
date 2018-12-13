@@ -185,13 +185,10 @@ while true; do
     whiptail --clear --title "Advanced Settings" \
       --menu "Configure Advanced Settings" 20 90 10 \
       'o' ' Other Boot Options -->' \
-      'r' ' TOTP/HOTP does not match, refresh code' \
-      'g' ' Generate new TOTP/HOTP secret' \
+      't' ' TPM/TOTP/HOTP Options -->' \
       's' ' Update checksums and sign all files in /boot' \
       'c' ' Change configuration settings -->' \
       'f' ' Flash/Update the BIOS -->' \
-      'p' ' Reset the TPM' \
-      'n' ' TOTP/HOTP does not match after refresh, troubleshoot' \
       'r' ' <-- Return to main menu' \
       2>/tmp/whiptail || recovery "GUI menu failed"
 
@@ -204,6 +201,19 @@ while true; do
       'm' ' Show OS boot menu' \
       'u' ' USB boot' \
       'i' ' Ignore tampering and force a boot (Unsafe!)' \
+      'r' ' <-- Return to main menu' \
+      2>/tmp/whiptail || recovery "GUI menu failed"
+
+    totp_confirm=$(cat /tmp/whiptail)
+  fi
+
+  if [ "$totp_confirm" = "t" ]; then
+    whiptail --clear --title "TPM/TOTP/HOTP Options" \
+      --menu "Select An Option" 20 90 10 \
+      'g' ' Generate new TOTP/HOTP secret' \
+      'p' ' Reset the TPM' \
+      'r' ' TOTP/HOTP does not match, refresh code' \
+      'n' ' TOTP/HOTP does not match after refresh, troubleshoot' \
       'r' ' <-- Return to main menu' \
       2>/tmp/whiptail || recovery "GUI menu failed"
 
