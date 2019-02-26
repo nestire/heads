@@ -114,7 +114,7 @@ while true; do
   if [ $GPG_KEY_COUNT -eq 0 ]; then
     whiptail $CONFIG_ERROR_BG_COLOR --clear --title "ERROR: GPG keyring empty!" \
       --menu "ERROR: Heads couldn't find any GPG keys in your keyring.\n\nIf this is the first time the system has booted,\nyou should add a public GPG key to the BIOS now.\n\nIf you just reflashed a new BIOS, you'll need to add at least one\npublic key to the keyring.\n\nIf you have not just reflashed your BIOS, THIS COULD INDICATE TAMPERING!\n\nHow would you like to proceed?" 30 90 4 \
-      'f' ' Add a GPG key to the running BIOS' \
+      'G' ' Add a GPG key to the running BIOS' \
       'i' ' Ignore error and continue to default boot menu' \
       'x' ' Exit to recovery shell' \
       2>/tmp/whiptail || recovery "GUI menu failed"
@@ -189,6 +189,7 @@ while true; do
       's' ' Update checksums and sign all files in /boot' \
       'c' ' Change configuration settings -->' \
       'f' ' Flash/Update the BIOS -->' \
+      'G' ' GPG Options -->' \
       'r' ' <-- Return to main menu' \
       2>/tmp/whiptail || recovery "GUI menu failed"
 
@@ -321,6 +322,11 @@ while true; do
 
   if [ "$totp_confirm" = "f" ]; then
     flash-gui.sh
+    continue
+  fi
+
+  if [ "$totp_confirm" = "G" ]; then
+    gpg-gui.sh
     continue
   fi
 
