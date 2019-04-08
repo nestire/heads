@@ -238,10 +238,11 @@ while true; do
       echo "********************************************************************************"
       gpg --card-edit > /tmp/gpg_card_edit_output
       if [ $? -eq 0 ]; then
-          GPG_GEN_KEY=`grep -A1 pub /tmp/gpg_card_edit_output | tail -n1`
+          GPG_GEN_KEY=`grep -A1 pub /tmp/gpg_card_edit_output | tail -n1 | sed -nr 's/^([ ])*//p'`
         if (whiptail --title 'Add Public Key to USB disk?' \
             --yesno "Would you like to copy the GPG public key you generated to a USB disk?\n\nOtherwise you will have to copy outside of Heads later\n\nThe file will show up as ${GPG_GEN_KEY}.asc" 16 90) then
           mount_usb
+          mount -o remount,rw /media
           gpg --export --armor $GPG_GEN_KEY > "/media/${GPG_GEN_KEY}.asc"
           if [ $? -eq 0 ]; then
             whiptail --title "${GPG_GEN_KEY}.asc Copied Successfully" \
