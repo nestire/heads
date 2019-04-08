@@ -246,7 +246,7 @@ while true; do
           gpg --export --armor $GPG_GEN_KEY > "/media/${GPG_GEN_KEY}.asc"
           if [ $? -eq 0 ]; then
             whiptail --title "${GPG_GEN_KEY}.asc Copied Successfully" \
-              --msgbox "The GPG public key copied successfully BIOS updated successfully." 16 60
+              --msgbox "The GPG public key copied successfully." 16 60
           else
             whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Copy Failed' \
               --msgbox "Unable to copy ${GPG_GEN_KEY}.asc to /media" 16 60
