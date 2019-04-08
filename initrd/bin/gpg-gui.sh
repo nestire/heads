@@ -236,7 +236,23 @@ while true; do
       echo "* Type 'admin' and then 'generate' and follow the prompts to generate a GPG key."
       echo "*"
       echo "********************************************************************************"
-      gpg --card-edit
+      gpg --card-edit > /tmp/gpg_card_edit_output
+      if [ $? -eq 0 ]; then
+          GPG_GEN_KEY=`grep -A1 pub /tmp/gpg_card_edit_output | tail -n1`
+        if (whiptail --title 'Add Public Key to USB disk?' \
+            --yesno "Would you like to copy the GPG public key you generated to a USB disk?\n\nOtherwise you will have to copy outside of Heads later\n\nThe file will show up as ${GPG_GEN_KEY}.asc" 16 90) then
+          mount_usb
+          gpg --export --armor $GPG_GEN_KEY > "/media/${GPG_GEN_KEY}.asc"
+          if [ $? -eq 0 ]; then
+            whiptail --title "${GPG_GEN_KEY}.asc Copied Successfully" \
+              --msgbox "The GPG public key copied successfully BIOS updated successfully." 16 60
+          else
+            whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Copy Failed' \
+              --msgbox "Unable to copy ${GPG_GEN_KEY}.asc to /media" 16 60
+          fi
+          umount /media
+        fi
+      fi
     ;;
   esac
 
