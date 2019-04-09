@@ -17,11 +17,7 @@ fi
 TOTP_SECRET="/tmp/secret/totp.key"
 TOTP_SEALED="/tmp/secret/totp.sealed"
 
-if [ ! -e /dev/tpm0 ]; then
-  CONFIG_TPM='n'
-fi
-
-if [ "$CONFIG_TPM" = "y" ]; then
+if [ "$CONFIG_TPM" = "y" -a -e /dev/tpm0 ]; then
   dd \
     if=/dev/urandom \
     of="$TOTP_SECRET" \

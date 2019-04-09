@@ -284,6 +284,7 @@ do_boot()
 	fi
 
 	if [ "$CONFIG_TPM" = "y" \
+    -a -e /dev/tpm0 \
 		-a -r "$TMP_KEY_DEVICES" ]; then
 		INITRD=`kexec-boot -b "$bootdir" -e "$option" -i` \
 		|| die "!!! Failed to extract the initrd from boot option"
@@ -328,6 +329,7 @@ while true; do
 	fi
 
 	if [ "$CONFIG_TPM" = "y" \
+    -a -e /dev/tpm0 \
 		-a ! -r "$TMP_KEY_DEVICES" ]; then
 		# Extend PCR4 as soon as possible
 		tpm extend -ix 4 -ic generic \
@@ -339,7 +341,7 @@ while true; do
 		scan_options
 	fi
 
-	if [ "$CONFIG_TPM" = "y" ]; then
+	if [ "$CONFIG_TPM" = "y" -a -e /dev/tpm0 ]; then
 		# Optionally enforce device file hashes
 		if [ -r "$TMP_HASH_FILE" ]; then
 			valid_global_hash="n"
