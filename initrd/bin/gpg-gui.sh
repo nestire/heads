@@ -221,6 +221,12 @@ while true; do
         fi
         if (whiptail --title 'Add Public Key to Running BIOS?' \
             --yesno "Would you like to add the GPG public key you generated to the BIOS?\n\nThis makes it a trusted key used to sign files in /boot\n\n" 16 90) then
+            /bin/flash.sh -r /tmp/gpg-gui.rom
+            if [ ! -s /tmp/gpg-gui.rom ]; then
+              whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: BIOS Read Failed!' \
+                --msgbox "Unable to read BIOS" 16 60
+              exit 1
+            fi
             PUBKEY="/tmp/${GPG_GEN_KEY}.asc"
             gpg_flash_rom
         fi
