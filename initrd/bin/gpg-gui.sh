@@ -107,7 +107,6 @@ gpg_flash_rom() {
   /bin/flash.sh /tmp/gpg-gui.rom
   whiptail --title 'BIOS Flashed Successfully' \
     --msgbox "BIOS flashed successfully.\n\nIf your keys have changed, be sure to re-sign all files in /boot\nafter you reboot.\n\nPress Enter to reboot" 16 60
-  umount /media
   /bin/reboot
 }
 
