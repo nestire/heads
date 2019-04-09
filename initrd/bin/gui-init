@@ -6,6 +6,10 @@ CONFIG_BOOT_GUI_MENU_NAME='Heads Boot Menu'
 . /etc/functions
 . /tmp/config
 
+if [ ! -e /dev/tpm0 ]; then
+  CONFIG_TPM='n'
+fi
+
 mount_boot()
 {
   # Mount local disk if it is not already mounted

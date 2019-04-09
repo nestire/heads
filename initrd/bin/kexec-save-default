@@ -4,6 +4,9 @@ set -e -o pipefail
 . /tmp/config
 . /etc/functions
 
+if [ ! -e /dev/tpm0 ]; then                                                                                                      CONFIG_TPM='n'
+fi
+
 while getopts "b:d:p:i:" arg; do
 	case $arg in
 		b) bootdir="$OPTARG" ;;
