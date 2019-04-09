@@ -84,7 +84,7 @@ update_checksums()
 
     # sign and auto-roll config counter
     extparam=
-    if [ "$CONFIG_TPM" = "y" -a -e /dev/tpm0 ]; then
+    if [ "$CONFIG_TPM" = "y" ]; then
       extparam=-u
     fi
     kexec-sign-config -p /boot $extparam \
@@ -133,7 +133,7 @@ while true; do
     date=`date "+%Y-%m-%d %H:%M:%S"`
     seconds=`date "+%s"`
     half=`expr \( $seconds % 60 \) / 30`
-    if [ "$CONFIG_TPM" = n -o ! -e /dev/tpm0 ]; then
+    if [ "$CONFIG_TPM" = n ]; then
       TOTP="NO TPM"
     elif [ "$half" != "$last_half" ]; then
       last_half=$half;
