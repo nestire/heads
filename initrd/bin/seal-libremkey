@@ -16,6 +16,10 @@ mount_boot()
   fi
 }
 
+if [ ! -e /dev/tpm0 ]; then
+  CONFIG_TPM='n'
+fi
+
 if [ "$CONFIG_TPM" = "y" ]; then
   tpm nv_readvalue \
     -in 4d47 \
