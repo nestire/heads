@@ -2,7 +2,8 @@
 # depends on : wget sha256sum gunzip
 
 # Purism source
-PURISM_SOURCE="https://source.puri.sm/coreboot/releases/raw/master"
+RELEASES_GIT_HASH="4a4118536640ac8b6473f4c20216b6c3b6de004a"
+PURISM_SOURCE="https://source.puri.sm/coreboot/releases/raw/${RELEASES_GIT_HASH}"
 
 # Librem 13 v4 and Librem 15 v4 binary blob hashes
 KBL_UCODE_SHA="a420274eecca369fcca465cc46725d61c0ae8ca2e18f201b1751faf9e081fb2e"
@@ -26,7 +27,7 @@ IFDTOOL_BIN="./ifdtool"
 COREBOOT_IMAGE="coreboot-l13v4.rom"
 COREBOOT_IMAGE_FILE="$COREBOOT_IMAGE.gz"
 COREBOOT_IMAGE_URL="$PURISM_SOURCE/librem_13v4/$COREBOOT_IMAGE_FILE"
-COREBOOT_IMAGE_SHA="4491efd0a8b2de5a88fd7491a5d2605884ed956c3d271d7761906269b4cfb601"
+COREBOOT_IMAGE_SHA="abf71568b885b1572db6877c4d163b1d35ed2bf3f02845e909bf5932844119e5"
 
 die () {
     local msg=$1
