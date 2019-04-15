@@ -44,7 +44,7 @@ if [ `cat /tmp/usb_block_devices | wc -l` -eq 1 ]; then
   fi
 # otherwise, let the user pick
 else
-  > /tmp/usb_block_devices
+  > /tmp/usb_disk_list
   for i in `cat /tmp/usb_block_devices`; do
     ls $i* >> /tmp/usb_disk_list
   done
