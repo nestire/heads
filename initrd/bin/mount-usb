@@ -52,7 +52,13 @@ fi
 if [ -z ${USB_MOUNT_DEVICE} ]; then
   > /tmp/usb_disk_list
   for i in `cat /tmp/usb_block_devices`; do
-    ls $i* >> /tmp/usb_disk_list
+    # remove block device from list if numeric partitions exist, since not bootable
+    let USB_NUM_PARTITIONS=`ls -1 $i* | wc -l`-1
+    if [ ${USB_NUM_PARTITIONS} -eq 0 ]; then
+      echo $i >> /tmp/usb_disk_list
+    else
+      ls $i* | tail -${USB_NUM_PARTITIONS} >> /tmp/usb_disk_list
+    fi
   done
 
   if [ -x /bin/whiptail ]; then
