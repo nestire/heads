@@ -20,6 +20,8 @@ ADMIN_PIN_DEF=12345678
 TPM_PASS_DEF=12345678
 CUSTOM_PASS=""
 
+RSA_KEY_LENGTH=3072
+
 GPG_USER_NAME="OEM Key"
 GPG_KEY_NAME=`date +%Y%m%d%H%M%S`
 GPG_USER_MAIL="oem-${GPG_KEY_NAME}@example.com"
@@ -69,6 +71,25 @@ gpg_key_reset()
     if [ $? -ne 0 ]; then
         ERROR=`cat /tmp/gpg_card_edit_output`
         whiptail_error_die "GPG Key factory reset failed!\n\n$ERROR"
+    fi
+    # Set RSA key length
+    {
+        echo admin
+        echo key-attr
+        echo 1 # RSA
+        echo ${RSA_KEY_LENGTH} #Signing key size set to RSA_KEY_LENGTH
+        echo ${ADMIN_PIN_DEF}
+        echo 1 # RSA
+        echo ${RSA_KEY_LENGTH} #Encryption key size set to RSA_KEY_LENGTH
+        echo ${ADMIN_PIN_DEF}
+        echo 1 # RSA
+        echo ${RSA_KEY_LENGTH} #Authentication key size set to RSA_KEY_LENGTH
+        echo ${ADMIN_PIN_DEF}
+    } | gpg --command-fd=0 --status-fd=1 --pinentry-mode=loopback --card-edit \
+        > /tmp/gpg_card_edit_output 2>/dev/null
+    if [ $? -ne 0 ]; then
+        ERROR=`cat /tmp/gpg_card_edit_output`
+        whiptail_error_die "Setting key attributed to RSA ${RSA_KEY_LENGTH} bits in USB security dongle failed."
     fi
     # Generate OEM GPG keys
     {
