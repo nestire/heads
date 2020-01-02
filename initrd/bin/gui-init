@@ -92,7 +92,7 @@ update_totp()
 {
   echo "Scan the QR code to add the new TOTP secret"
   /bin/seal-totp
-  if [ -x /bin/libremkey_hotp_verification ]; then
+  if [ -x /bin/nitrokey_hotp_verification ]; then
     echo "Once you have scanned the QR code, hit Enter to configure your Nitrokey"
     read
     /bin/seal-libremkey
@@ -189,14 +189,14 @@ while true; do
   fi
 
   if [ "$totp_confirm" = "i" -o -z "$totp_confirm" ]; then 
-    if [ -x /bin/libremkey_hotp_verification ]; then
+    if [ -x /bin/nitrokey_hotp_verification ]; then
       HOTP=`unseal-hotp`
       enable_usb
-      if ! libremkey_hotp_verification info ; then
+      if ! nitrokey_hotp_verification info ; then
         whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert Your Nitrokey' --msgbox "Your Nitrokey was not detected.\n\nPlease insert your Nitrokey" 30 90
         fi
       # Don't output HOTP codes to screen, so as to make replay attacks harder
-      libremkey_hotp_verification check $HOTP
+      nitrokey_hotp_verification check $HOTP
       case "$?" in
         0 )
           HOTP="Success"
