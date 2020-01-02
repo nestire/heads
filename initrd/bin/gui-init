@@ -93,7 +93,7 @@ update_totp()
   echo "Scan the QR code to add the new TOTP secret"
   /bin/seal-totp
   if [ -x /bin/libremkey_hotp_verification ]; then
-    echo "Once you have scanned the QR code, hit Enter to configure your Librem Key"
+    echo "Once you have scanned the QR code, hit Enter to configure your Nitrokey"
     read
     /bin/seal-libremkey
   else
@@ -152,6 +152,7 @@ while true; do
       --menu "ERROR: Heads couldn't find any GPG keys in your keyring.\n\nIf this is the first time the system has booted,\nyou should add a public GPG key to the BIOS now.\n\nIf you just reflashed a new BIOS, you'll need to add at least one\npublic key to the keyring.\n\nIf you have not just reflashed your BIOS, THIS COULD INDICATE TAMPERING!\n\nHow would you like to proceed?" 30 90 4 \
       'G' ' Add a GPG key to the running BIOS' \
       'i' ' Ignore error and continue to default boot menu' \
+      'F' ' OEM Factory Reset' \
       'x' ' Exit to recovery shell' \
       2>/tmp/whiptail || recovery "GUI menu failed"
 
@@ -192,7 +193,7 @@ while true; do
       HOTP=`unseal-hotp`
       enable_usb
       if ! libremkey_hotp_verification info ; then
-        whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert Your Librem Key' --msgbox "Your Librem Key was not detected.\n\nPlease insert your Librem Key" 30 90
+        whiptail $CONFIG_WARNING_BG_COLOR --clear --title 'WARNING: Please Insert Your Nitrokey' --msgbox "Your Nitrokey was not detected.\n\nPlease insert your Nitrokey" 30 90
         fi
       # Don't output HOTP codes to screen, so as to make replay attacks harder
       libremkey_hotp_verification check $HOTP
@@ -205,7 +206,7 @@ while true; do
           MAIN_MENU_BG_COLOR=$CONFIG_ERROR_BG_COLOR
         ;;
         * )
-          HOTP="Error checking code, Insert Librem Key and retry"
+          HOTP="Error checking code, Insert Nitrokey and retry"
           MAIN_MENU_BG_COLOR=$CONFIG_WARNING_BG_COLOR
         ;;
       esac
