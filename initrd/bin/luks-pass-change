@@ -1,0 +1,72 @@
+#!/bin/sh
+# Change passphrase of a Luks partition
+
+if [ -e /tmp/luks_devices ]; then
+	rm /tmp/luks_devices
+fi
+
+for device in $(ls /dev/sd*)
+do
+# TODO remove sudo
+    sudo cryptsetup isLuks $device
+    if [ $? == 0 ]; then
+        echo $device >> /tmp/luks_devices
+    fi
+done
+
+if [ ! -e /tmp/luks_devices ]; then
+  if [ -x /bin/whiptail ]; then
+    whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: No LUKS encrypted device found!' \
+      --msgbox "No LUKS enrypted device found! Aborting passphrase change.\n\nPress Enter to continue." 16 60
+  else
+    echo "!!! ERROR: No LUKS enrypted device found! Aborting passphrase change. Press Enter to continue."
+  fi
+  exit 1
+fi
+
+LUKS_DEVICE=""
+# Check for the simple case: a single LUKS disk
+if [ `cat /tmp/luks_devices | wc -l` -eq 1 ]; then
+  LUKS_DEVICE=`cat /tmp/luks_devices`
+fi
+
+# otherwise, let the user pick
+if [ -z ${LUKS_DEVICE} ]; then
+  if [ -x /bin/whiptail ]; then
+    MENU_OPTIONS=""
+    n=0
+    while read option
+    do
+      n=`expr $n + 1`
+      option=$(echo $option | tr " " "_")
+      MENU_OPTIONS="$MENU_OPTIONS $n ${option}"
+    done < /tmp/luks_devices
+
+    MENU_OPTIONS="$MENU_OPTIONS a Abort"
+    whiptail --clear --title "Select your LUKS disk" \
+      --menu "Choose your LUKS disk [1-$n, a to abort]:" 20 120 8 \
+      -- $MENU_OPTIONS \
+      2>/tmp/whiptail
+
+    option_index=$(cat /tmp/whiptail)
+  else
+    echo "+++ Select your LUKS disk:"
+    n=0
+    while read option
+    do
+      n=`expr $n + 1`
+      echo "$n. $option"
+    done < /tmp/luks_devices
+
+    read \
+      -p "Choose your LUKS disk [1-$n, a to abort]: " \
+      option_index
+  fi
+
+  if [ "$option_index" = "a" ]; then
+    exit 1
+  fi
+  LUKS_DEVICE=`head -n $option_index /tmp/luks_devices | tail -1`
+fi
+
+echo "$LUKS_DEVICE"
