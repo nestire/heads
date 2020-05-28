@@ -1,5 +1,6 @@
 #!/bin/sh
 # Change passphrase of a Luks partition
+# FIXME remove sudo everywhere!
 
 if [ -e /tmp/luks_devices ]; then
 	rm /tmp/luks_devices
@@ -7,7 +8,6 @@ fi
 
 for device in $(ls /dev/sd*)
 do
-# TODO remove sudo
     sudo cryptsetup isLuks $device
     if [ $? == 0 ]; then
         echo $device >> /tmp/luks_devices
@@ -69,4 +69,32 @@ if [ -z ${LUKS_DEVICE} ]; then
   LUKS_DEVICE=`head -n $option_index /tmp/luks_devices | tail -1`
 fi
 
-echo "$LUKS_DEVICE"
+# try standard passphrase of Nitrokey OEM Images and change to random passphrase
+echo 'PleaseChangeMe' | sudo cryptsetup open --test-passphrase "$LUKS_DEVICE" 2> /dev/null
+if [ $? = 0 ]; then
+	newpass=$(head /dev/urandom | tr -dc A-Xa-x0-9 | head -c 10)
+
+	# It is not possible to script to add a passphrase with given *passphrase*
+	# Therefore, we create a keyfile, add this to LUKS and add a passphrase then
+
+	echo "\nCreating new LUKS passphrase and add it to $LUKS_DEVICE,"
+	echo "This might take some seconds...\n"
+
+	# create temporary keyfile
+	echo "PleaseChangeMe" > /tmp/keyfile
+	# add temporary keyfile to LUKS disk
+	echo "PleaseChangeMe" | sudo cryptsetup luksAddKey "$LUKS_DEVICE" /tmp/keyfile
+	# add new passphrase to LUKS disk using this keyfile
+	echo "$newpass" | sudo cryptsetup luksAddKey -d /tmp/keyfile "$LUKS_DEVICE"
+	# remove temporary keyfile from LUKS disk
+	sudo cryptsetup luksRemoveKey "$LUKS_DEVICE" /tmp/keyfile
+	# remove old passphrase from LUKS disk
+	echo "PleaseChangeMe" | sudo cryptsetup luksRemoveKey "$LUKS_DEVICE"
+
+	echo "\nNew pass is $newpass\n"
+	# TODO qrcode and store in file
+
+# ask for old passphrase as standard is not set
+else
+	echo "I ask for new passphrase"
+fi
