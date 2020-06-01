@@ -65,6 +65,7 @@ while true; do
     'b' ' Change the /boot device' \
     's' ' Save the current configuration to the running BIOS' \
     'r' ' Clear GPG key(s) and reset all user settings' \
+    'l' ' Change LUKS passphrase' \
     'x' ' Return to Main Menu' \
     2>/tmp/whiptail || recovery "GUI menu failed"
 
@@ -173,6 +174,11 @@ while true; do
         exit 0
       fi
     ;;
+    "l" )
+        /bin/luks-pass-change
+        exit 0
+    ;;
+
   esac
 
 done
