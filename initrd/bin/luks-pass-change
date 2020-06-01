@@ -1,100 +1,199 @@
 #!/bin/sh
 # Change passphrase of a Luks partition
-# FIXME remove sudo everywhere!
+
+
+# first argument: old passphrase
+# second argument: new passphrase
+# third argument: LUKS device
+cryptsetup_changepass() {
+    # It is not possible to script adding a passphrase with a given *passphrase*
+    # Therefore, we create a keyfile, add this to LUKS and add a passphrase then
+    # Afterwards we delete the keyfile again and delete the old passphrase
+    
+    # create temporary keyfile
+    echo "tempkey" > /tmp/keyfile
+    # use first argument to add temporary keyfile to LUKS disk
+    echo "$1" | cryptsetup luksAddKey "$3" /tmp/keyfile
+    # add new passphrase to LUKS disk using this keyfile
+    echo "$2" | cryptsetup luksAddKey -d /tmp/keyfile "$3"
+    # remove temporary keyfile from LUKS disk
+    cryptsetup luksRemoveKey "$3" /tmp/keyfile
+    # remove old passphrase from LUKS disk
+    echo "$1" | cryptsetup luksRemoveKey "$3"
+}
+
+
+if (whiptail --title 'Change LUKS passphrase' --yesno "
+    You have chosen to change a LUKS passphrase. This is the passphrase used to
+    decrypt your disk. You will not be able to decrypt your device with the old
+    passphrase afterwards. Please be sure to remember the new passphrase as you
+    will not be able to access your files otherwise.\n\n
+    Do you want to continue?" 16 90) then
+    echo "Starting LUKS passphrase change."
+else
+    echo "Returning to the main menu"
+    exit 1
+fi
 
 if [ -e /tmp/luks_devices ]; then
-	rm /tmp/luks_devices
+    rm /tmp/luks_devices
 fi
 
 for device in $(ls /dev/sd*)
 do
-    sudo cryptsetup isLuks $device
+    cryptsetup isLuks $device
     if [ $? == 0 ]; then
         echo $device >> /tmp/luks_devices
     fi
 done
 
 if [ ! -e /tmp/luks_devices ]; then
-  if [ -x /bin/whiptail ]; then
-    whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: No LUKS encrypted device found!' \
-      --msgbox "No LUKS enrypted device found! Aborting passphrase change.\n\nPress Enter to continue." 16 60
-  else
-    echo "!!! ERROR: No LUKS enrypted device found! Aborting passphrase change. Press Enter to continue."
-  fi
-  exit 1
+    if [ -x /bin/whiptail ]; then
+        whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: No LUKS encrypted device found!' \
+            --msgbox "No LUKS enrypted device found! Aborting passphrase change.\n\nPress Enter to continue." 16 60
+    else
+        echo "!!! ERROR: No LUKS enrypted device found! Aborting passphrase change. Press Enter to continue."
+    fi
+    exit 1
 fi
 
 LUKS_DEVICE=""
 # Check for the simple case: a single LUKS disk
 if [ `cat /tmp/luks_devices | wc -l` -eq 1 ]; then
-  LUKS_DEVICE=`cat /tmp/luks_devices`
+    LUKS_DEVICE=`cat /tmp/luks_devices`
 fi
 
 # otherwise, let the user pick
 if [ -z ${LUKS_DEVICE} ]; then
-  if [ -x /bin/whiptail ]; then
-    MENU_OPTIONS=""
-    n=0
-    while read option
-    do
-      n=`expr $n + 1`
-      option=$(echo $option | tr " " "_")
-      MENU_OPTIONS="$MENU_OPTIONS $n ${option}"
-    done < /tmp/luks_devices
+    if [ -x /bin/whiptail ]; then
+        MENU_OPTIONS=""
+        n=0
+        while read option
+        do
+            n=`expr $n + 1`
+            option=$(echo $option | tr " " "_")
+            MENU_OPTIONS="$MENU_OPTIONS $n ${option}"
+        done < /tmp/luks_devices
 
-    MENU_OPTIONS="$MENU_OPTIONS a Abort"
-    whiptail --clear --title "Select your LUKS disk" \
-      --menu "Choose your LUKS disk [1-$n, a to abort]:" 20 120 8 \
-      -- $MENU_OPTIONS \
-      2>/tmp/whiptail
+        MENU_OPTIONS="$MENU_OPTIONS a Abort"
+        whiptail --clear --title "Select your LUKS disk" \
+            --menu "Choose your LUKS disk [1-$n, a to abort]:" 20 120 8 \
+            -- $MENU_OPTIONS \
+            2>/tmp/whiptail
 
-    option_index=$(cat /tmp/whiptail)
-  else
-    echo "+++ Select your LUKS disk:"
-    n=0
-    while read option
-    do
-      n=`expr $n + 1`
-      echo "$n. $option"
-    done < /tmp/luks_devices
+        if [ ! $? = 0 ]; then # user hit cancel
+            exit 1
+        fi
+        option_index=$(cat /tmp/whiptail)
+    else
+        echo "+++ Select your LUKS disk:"
+        n=0
+        while read option
+        do
+            n=`expr $n + 1`
+            echo "$n. $option"
+        done < /tmp/luks_devices
 
-    read \
-      -p "Choose your LUKS disk [1-$n, a to abort]: " \
-      option_index
-  fi
+        read \
+            -p "Choose your LUKS disk [1-$n, a to abort]: " \
+            option_index
+    fi
 
-  if [ "$option_index" = "a" ]; then
-    exit 1
-  fi
-  LUKS_DEVICE=`head -n $option_index /tmp/luks_devices | tail -1`
+    if [ "$option_index" = "a" ]; then
+        exit 1
+    fi
+    LUKS_DEVICE=`head -n $option_index /tmp/luks_devices | tail -1`
 fi
 
 # try standard passphrase of Nitrokey OEM Images and change to random passphrase
-echo 'PleaseChangeMe' | sudo cryptsetup open --test-passphrase "$LUKS_DEVICE" 2> /dev/null
+echo "Checking $LUKS_DEVICE..."
+echo "PleaseChangeMe" | cryptsetup open --test-passphrase "$LUKS_DEVICE" 2> /dev/null
 if [ $? = 0 ]; then
-	newpass=$(head /dev/urandom | tr -dc A-Xa-x0-9 | head -c 10)
+    NEW_PASS=$(head /dev/urandom | tr -dc A-Xa-x0-9 | head -c 10)
 
-	# It is not possible to script to add a passphrase with given *passphrase*
-	# Therefore, we create a keyfile, add this to LUKS and add a passphrase then
+    echo -e "\nCreating new LUKS passphrase and add it to $LUKS_DEVICE,"
+    echo -e "this might take some seconds...\n"
 
-	echo "\nCreating new LUKS passphrase and add it to $LUKS_DEVICE,"
-	echo "This might take some seconds...\n"
+    cryptsetup_changepass "PleaseChangeMe" "$NEW_PASS" "$LUKS_DEVICE"
 
-	# create temporary keyfile
-	echo "PleaseChangeMe" > /tmp/keyfile
-	# add temporary keyfile to LUKS disk
-	echo "PleaseChangeMe" | sudo cryptsetup luksAddKey "$LUKS_DEVICE" /tmp/keyfile
-	# add new passphrase to LUKS disk using this keyfile
-	echo "$newpass" | sudo cryptsetup luksAddKey -d /tmp/keyfile "$LUKS_DEVICE"
-	# remove temporary keyfile from LUKS disk
-	sudo cryptsetup luksRemoveKey "$LUKS_DEVICE" /tmp/keyfile
-	# remove old passphrase from LUKS disk
-	echo "PleaseChangeMe" | sudo cryptsetup luksRemoveKey "$LUKS_DEVICE"
+    echo -e "\nNew passphrase is $NEW_PASS\n"
+    qrenc "$NEW_PASS"
 
-	echo "\nNew pass is $newpass\n"
-	# TODO qrcode and store in file
+    # umount USB, then remount rw
+    echo -e "\nChecking for USB media...\n"
+    # ensure /media not mounted
+    umount /media 2>/dev/null
+    # mount-usb will detect and prompt if no USB inserted
+    if ! mount-usb rw 2>/tmp/error; then
+        ERROR=$(tail -n 1 /tmp/error)
+        whiptail_error_die "Unable to mount USB on /media:\n\n${ERROR}"
+    else
+        # export new passphrase to USB
+        echo -e "\nExporting new passphrase to USB...\n"
+        if echo "$NEW_PASS" >> "/media/passphrase.txt" ; then
+            whiptail_error_die "Passphrase export error: unable to copy passphrase to /media.\n\n"
+        else
+            echo -e "Passphrase copied as 'passphrase.txt' on USB media.\n"
+        fi
+        umount /media 2>/dev/null
+    fi
+
+    echo -e "\nPress enter to proceed..."
+    read
 
 # ask for old passphrase as standard is not set
 else
-	echo "I ask for new passphrase"
+    whiptail --clear --title "Old LUKS disk passphrase" \
+        --passwordbox "Please enter a current passphrase for $LUKS_DEVICE" 8 78 2>/tmp/whiptail
+    if [ ! $? = 0 ]; then # user hit cancel
+        exit 1
+    fi
+    OLD_PASS=$(cat /tmp/whiptail)
+
+    whiptail --clear --title "New LUKS disk passphrase" \
+        --passwordbox "Please enter the new passphrase for $LUKS_DEVICE" 8 78 2>/tmp/whiptail
+    if [ ! $? = 0 ]; then # user hit cancel
+        exit 1
+    fi
+    NEW_PASS1=$(cat /tmp/whiptail)
+
+    whiptail --clear --title "New LUKS disk passphrase confirmation" \
+        --passwordbox "Please repeat the new passphrase for $LUKS_DEVICE" 8 78 2>/tmp/whiptail
+    if [ ! $? = 0 ]; then # user hit cancel
+        exit 1
+    fi
+    NEW_PASS2=$(cat /tmp/whiptail)
+
+    # check old passphrase on LUKS device
+    echo "$OLD_PASS" | cryptsetup open --test-passphrase "$LUKS_DEVICE" 2> /dev/null
+    if [ ! $? = 0 ]; then
+        if (whiptail --title 'Old passphrase not working' \
+            --yesno "The old passphrase was not found on $LUKS_DEVICE. Do you want to try again?" 8 90) then
+            /bin/luks-pass-change
+        else
+            echo "Returning to the main menu"
+            exit 1
+        fi
+    fi
+
+    # check new passphrases and change LUKS key accordingly
+    if [ "$NEW_PASS1" == "$NEW_PASS2" ] && [ ! $NEW_PASS1 -z ]; then
+        if (whiptail --title 'Replace old passphrase with new one' \
+            --yesno "This will erase your old passphrase and replace it with the new one on "$LUKS_DEVICE"! \
+            \n\nDo you want to proceed?" 16 90) then
+
+            echo -e "\nReplace old LUKS passphrase with new one on $LUKS_DEVICE,"
+            echo -e "this might take some seconds...\n"
+            cryptsetup_changepass "$OLD_PASS" "$NEW_PASS1" "$LUKS_DEVICE"
+        else
+            echo "Returning to the main menu"
+        fi
+    else
+        if (whiptail --title 'Passphrase mismatch' \
+            --yesno "Passphrases did not match or are empty. Do you want to try again?" 8 90) then
+            /bin/luks-pass-change
+        else
+            echo "Returning to the main menu"
+        fi
+    fi
 fi
