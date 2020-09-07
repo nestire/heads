@@ -34,161 +34,49 @@ jobs:
             #If precedent fails. Restore cache for musl-cross module checksum validated to be exactly the same as in github current commit
             - heads-cross-musl-{{ checksum "/tmp/musl-cross_module_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
 
-# linuxboot steps need something to pass in the kernel header path
-# skipping for now
-#      - run:
-#          name: qemu-linuxboot-edk2
-#          command: |
-#            ./build/make-4.2.1/make \
-#                CROSS=/cross/bin/x86_64-linux-musl- \
-#                BOARD=qemu-linuxboot \
-#                `/bin/pwd`/build/linuxboot-git/build/qemu/.configured \
-#                # Run first to avoid too many processes
-#
-#      - run:
-#          name: qemu-linuxboot
-#          command: |
-#            ./build/make-4.2.1/make \
-#                CROSS=/cross/bin/x86_64-linux-musl- \
-#                --load 2 \
-#                V=1 \
-#                BOARD=qemu-linuxboot \
-#
-#      - store-artifacts:
-#          path: build/qemu-linuxboot/linuxboot.rom
-#      - store-artifacts:
-#          path: build/qemu-linuxboot/hashes.txt
+      - run:
+         name: x230-nkstorecli
+         command: |
+           rm -rf build/x230-nkstorecli/* build/log/* && make --load 2 \
+               V=1 \
+               BOARD=x230-nkstorecli \
+         no_output_timeout: 3h
+      - run:
+          name: collect all .a files and pack them together
+          command: |
+            mkdir out && \
+            find . -name "*.a" | xargs tar czfv out/static-libs.1.tgz && \
+            cp crossgcc/x86_64-linux-musl/lib64/libstdc++.a out/libstdc++.1.a && \
+            tar czfv out/install.1.tgz install && \
+            rm -rf build && \
+            make --load 2 V=1 BOARD=x230-nkstorecli && \
+            find . -name "*.a" | xargs tar czfv out/static-libs.2.tgz && \
+            cp crossgcc/x86_64-linux-musl/lib64/libstdc++.a out/libstdc++.2.a && \
+            tar czfv out/install.2.tgz install && \
+            tar czfv all_together.tgz out \
+
+      - store-artifacts:
+          path: all_together.tgz
 
 #     - run:
-#         name: x230-flash
-#         #We delete build/make-4.2.1/ directory until issue #799 is fixed.
+#         name: x230-nkstorecli
 #         command: |
-#           rm -rf build/x230-flash/* build/log/* && make --load 2 \
+#           rm -rf build/x230-nkstorecli/* build/log/* && make --load 2 \
 #               V=1 \
-#               BOARD=x230-flash \
+#               BOARD=x230-nkstorecli \
 #         no_output_timeout: 3h
 #     - run:
-#         name: Ouput x230-flash hashes
+#         name: Ouput x230-nkstorecli hashes
 #         command: |
-#           cat build/x230-flash/hashes.txt \
+#           cat build/x230-nkstorecli/hashes.txt \
 #     - run:
-#         name: Archiving build logs for x230-flash
+#         name: Archiving build logs for x230-nkstorecli
 #         command: |
-#            tar zcvf build/x230-flash/logs.tar.gz build/log/*
+#            tar zcvf build/x230-nkstorecli/logs.tar.gz build/log/*
 #     - store-artifacts:
-#         path: build/x230-flash
-#
-#     - run:
-#         name: t430-flash
-#         command: |
-#           rm -rf build/t430-flash/* build/log/* && make --load 2 \
-#               V=1 \
-#               BOARD=t430-flash \
-#         no_output_timeout: 3h
-#     - run:
-#         name: Ouput t430-flash hashes
-#         command: |
-#           cat build/t430-flash/hashes.txt \
-#     - run:
-#         name: Archiving build logs for t430-flash
-#         command: |
-#            tar zcvf build/t430-flash/logs.tar.gz build/log/*
+#         path: build/x230-nkstorecli
 #     - store-artifacts:
-#         path: build/t430-flash
-#
-#     - run:
-#         name: t430
-#         command: |
-#           rm -rf build/t430/* build/log/* && make --load 2 \
-#               V=1 \
-#               BOARD=t430 \
-#         no_output_timeout: 3h
-#     - run:
-#         name: Ouput t430 hashes
-#         command: |
-#           cat build/t430/hashes.txt \
-#     - run:
-#         name: Archiving build logs for t430
-#         command: |
-#            tar zcvf build/t430/logs.tar.gz build/log/*
-#     - store-artifacts:
-#         path: build/t430
-#
-#     - run:
-#         name: x230
-#         command: |
-#           rm -rf build/x230/* build/log/* && make --load 2 \
-#               V=1 \
-#               BOARD=x230 \
-#         no_output_timeout: 3h
-#     - run:
-#         name: Ouput x230 hashes
-#         command: |
-#           cat build/x230/hashes.txt \
-#     - run:
-#         name: Archiving build logs for x230
-#         command: |
-#            tar zcvf build/x230/logs.tar.gz build/log/*
-#     - store-artifacts:
-#         path: build/x230
-#
-#     - run:
-#         name: x230-hotp-verification
-#         command: |
-#           rm -rf build/x230-hotp-verification/* build/log/* && make --load 2 \
-#               V=1 \
-#               BOARD=x230-hotp-verification \
-#         no_output_timeout: 3h
-#     - run:
-#         name: Ouput x230-hotp-verification hashes
-#         command: |
-#           cat build/x230-hotp-verification/hashes.txt \
-#     - run:
-#         name: Archiving build logs for x230-hotp-verification
-#         command: |
-#            tar zcvf build/x230-hotp-verification/logs.tar.gz build/log/*
-#     - store-artifacts:
-#         path: build/x230-hotp-verification
-
-      - run:
-          name: x230-nkstorecli
-          command: |
-            rm -rf build/x230-nkstorecli/* build/log/* && make --load 2 \
-                V=1 \
-                BOARD=x230-nkstorecli \
-          no_output_timeout: 3h
-      - run:
-          name: Ouput x230-nkstorecli hashes
-          command: |
-            cat build/x230-nkstorecli/hashes.txt \
-      - run:
-          name: Archiving build logs for x230-nkstorecli
-          command: |
-             tar zcvf build/x230-nkstorecli/logs.tar.gz build/log/*
-      - store-artifacts:
-          path: build/x230-nkstorecli
-      - store-artifacts:
-          path: crossgcc/x86_64-linux-musl/lib64/libstdc++.a
-
-      - run:
-          name: x230-nkstorecli
-          command: |
-            rm -rf build/x230-nkstorecli/* build/log/* && make --load 2 \
-                V=1 \
-                BOARD=x230-nkstorecli \
-          no_output_timeout: 3h
-      - run:
-          name: Ouput x230-nkstorecli hashes
-          command: |
-            cat build/x230-nkstorecli/hashes.txt \
-      - run:
-          name: Archiving build logs for x230-nkstorecli
-          command: |
-             tar zcvf build/x230-nkstorecli/logs.tar.gz build/log/*
-      - store-artifacts:
-          path: build/x230-nkstorecli
-      - store-artifacts:
-          path: crossgcc/x86_64-linux-musl/lib64/libstdc++.a
+#         path: crossgcc/x86_64-linux-musl/lib64/libstdc++.a
 
 
       - run:
