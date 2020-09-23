@@ -22,15 +22,32 @@ while true; do
     ;;
     f|c )
       if (whiptail --title 'Flash the BIOS with a new ROM' \
-          --yesno "You will need to insert a USB drive containing your BIOS image (*.rom).\n\nAfter you select this file, this program will reflash your BIOS.\n\nDo you want to proceed?" 16 90) then
+          --yesno "You will need to insert a USB drive containing your BIOS image.\nThe image is either a *.rom file or a *.zip archive.\n\nAfter you select this file, this program will reflash your BIOS.\n\nDo you want to proceed?" 16 90) then
         mount_usb
         if grep -q /media /proc/mounts ; then
-          find /media ! -path '*/\.*' -type f -name '*.rom' | sort > /tmp/filelist.txt
+          find /media ! -path '*/\.*' -type f -name '*.zip' | sort > /tmp/filelist.txt
+          find /media ! -path '*/\.*' -type f -name '*.rom' | sort >> /tmp/filelist.txt
           file_selector "/tmp/filelist.txt" "Choose the ROM to flash"
           if [ "$FILE" == "" ]; then
             return
           else
             ROM=$FILE
+          fi
+
+          # is a .zip provided?
+          if [ -z "${ROM##*.zip}" ]; then
+            # unzip to /tmp/verified_rom
+            mkdir /tmp/verified_rom
+            unzip $ROM -d /tmp/verified_rom
+            # check file integrity
+            if sha256sum -cs /tmp/verified_rom/sha256sum.txt ; then
+              ROM="$(head -n1 /tmp/verified_rom/sha256sum.txt | cut -d ' ' -f 3)"
+            else
+              whiptail --title 'ROM Integrity Check Failed! ' \
+                --msgbox "$ROM integrity check failed. Did not flash.\n\nPress Enter to reboot to *old* ROM\n" 16 60
+              umount /media
+              /bin/reboot
+            fi
           fi
 
           if (whiptail --title 'Flash ROM?' \
