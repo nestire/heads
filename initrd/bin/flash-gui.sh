@@ -22,10 +22,10 @@ while true; do
     ;;
     f|c )
       if (whiptail --title 'Flash the BIOS with a new ROM' \
-          --yesno "You will need to insert a USB drive containing your BIOS image.\nThe image is either a *.rom file or a *.zip archive.\n\nAfter you select this file, this program will reflash your BIOS.\n\nDo you want to proceed?" 16 90) then
+          --yesno "You will need to insert a USB drive containing your BIOS image.\nThe image is either a *.rom file or a *.npf archive.\n\nAfter you select this file, this program will reflash your BIOS.\n\nDo you want to proceed?" 16 90) then
         mount_usb
         if grep -q /media /proc/mounts ; then
-          find /media ! -path '*/\.*' -type f -name '*.zip' | sort > /tmp/filelist.txt
+          find /media ! -path '*/\.*' -type f -name '*.npf' | sort > /tmp/filelist.txt
           find /media ! -path '*/\.*' -type f -name '*.rom' | sort >> /tmp/filelist.txt
           file_selector "/tmp/filelist.txt" "Choose the ROM to flash"
           if [ "$FILE" == "" ]; then
@@ -34,8 +34,8 @@ while true; do
             ROM=$FILE
           fi
 
-          # is a .zip provided?
-          if [ -z "${ROM##*.zip}" ]; then
+          # is a .npf provided?
+          if [ -z "${ROM##*.npf}" ]; then
             # unzip to /tmp/verified_rom
             mkdir /tmp/verified_rom
             unzip $ROM -d /tmp/verified_rom
