@@ -44,9 +44,14 @@ while true; do
               ROM="$(head -n1 /tmp/verified_rom/sha256sum.txt | cut -d ' ' -f 3)"
             else
               whiptail --title 'ROM Integrity Check Failed! ' \
-                --msgbox "$ROM integrity check failed. Did not flash.\n\nPress Enter to reboot to *old* ROM\n" 16 60
-              umount /media
-              /bin/reboot
+                --msgbox "$ROM integrity check failed. Did not flash.\n\nPlease check your file (e.g. re-download).\n" 16 60
+              exit
+            fi
+          else
+            # exit if we shall not proceed
+            if ! (whiptail $CONFIG_ERROR_BG_COLOR --title 'Flash ROM without integrity check?' \
+                --yesno "You have provided a *.rom file. The integrity of the file can not be\nchecked for this file.\nIf you do not know how to check the file integrity yourself,\nyou should use a *.npf file instead.\n\nIf the file is damaged, you will not be able to boot anymore.\nDo you want to proceed flashing without file integrity check?" 16 60) then
+              exit
             fi
           fi
 
