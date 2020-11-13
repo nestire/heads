@@ -22,15 +22,37 @@ while true; do
     ;;
     f|c )
       if (whiptail --title 'Flash the BIOS with a new ROM' \
-          --yesno "You will need to insert a USB drive containing your BIOS image (*.rom).\n\nAfter you select this file, this program will reflash your BIOS.\n\nDo you want to proceed?" 16 90) then
+          --yesno "You will need to insert a USB drive containing your BIOS image.\nThe image is either a *.rom file or a *.npf archive.\n\nAfter you select this file, this program will reflash your BIOS.\n\nDo you want to proceed?" 16 90) then
         mount_usb
         if grep -q /media /proc/mounts ; then
-          find /media ! -path '*/\.*' -type f -name '*.rom' | sort > /tmp/filelist.txt
+          find /media ! -path '*/\.*' -type f -name '*.npf' | sort > /tmp/filelist.txt
+          find /media ! -path '*/\.*' -type f -name '*.rom' | sort >> /tmp/filelist.txt
           file_selector "/tmp/filelist.txt" "Choose the ROM to flash"
           if [ "$FILE" == "" ]; then
             return
           else
             ROM=$FILE
+          fi
+
+          # is a .npf provided?
+          if [ -z "${ROM##*.npf}" ]; then
+            # unzip to /tmp/verified_rom
+            mkdir /tmp/verified_rom
+            unzip $ROM -d /tmp/verified_rom
+            # check file integrity
+            if sha256sum -cs /tmp/verified_rom/sha256sum.txt ; then
+              ROM="$(head -n1 /tmp/verified_rom/sha256sum.txt | cut -d ' ' -f 3)"
+            else
+              whiptail --title 'ROM Integrity Check Failed! ' \
+                --msgbox "$ROM integrity check failed. Did not flash.\n\nPlease check your file (e.g. re-download).\n" 16 60
+              exit
+            fi
+          else
+            # exit if we shall not proceed
+            if ! (whiptail $CONFIG_ERROR_BG_COLOR --title 'Flash ROM without integrity check?' \
+                --yesno "You have provided a *.rom file. The integrity of the file can not be\nchecked for this file.\nIf you do not know how to check the file integrity yourself,\nyou should use a *.npf file instead.\n\nIf the file is damaged, you will not be able to boot anymore.\nDo you want to proceed flashing without file integrity check?" 16 60) then
+              exit
+            fi
           fi
 
           if (whiptail --title 'Flash ROM?' \
