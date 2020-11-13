@@ -85,7 +85,7 @@ gpg_post_gen_mgmt() {
       whiptail --title "The GPG Key Copied Successfully" \
         --msgbox "${GPG_GEN_KEY}.asc copied successfully." 16 60
     else
-      whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Copy Failed' \
+      whiptail $BG_COLOR_ERROR --title 'ERROR: Copy Failed' \
         --msgbox "Unable to copy ${GPG_GEN_KEY}.asc to /media" 16 60
     fi
     umount /media
@@ -94,7 +94,7 @@ gpg_post_gen_mgmt() {
       --yesno "Would you like to add the GPG public key you generated to the BIOS?\n\nThis makes it a trusted key used to sign files in /boot\n\n" 16 90) then
       /bin/flash.sh -r /tmp/gpg-gui.rom
       if [ ! -s /tmp/gpg-gui.rom ]; then
-        whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: BIOS Read Failed!' \
+        whiptail $BG_COLOR_ERROR --title 'ERROR: BIOS Read Failed!' \
           --msgbox "Unable to read BIOS" 16 60
         exit 1
       fi
@@ -120,7 +120,7 @@ gpg_add_key_reflash() {
 
       /bin/flash.sh -r /tmp/gpg-gui.rom
       if [ ! -s /tmp/gpg-gui.rom ]; then
-        whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: BIOS Read Failed!' \
+        whiptail $BG_COLOR_ERROR --title 'ERROR: BIOS Read Failed!' \
           --msgbox "Unable to read BIOS" 16 60
         exit 1
       fi
@@ -139,9 +139,9 @@ while true; do
   unset menu_choice
   whiptail --clear --title "GPG Management Menu" \
     --menu 'Select the GPG function to perform' 20 90 10 \
-    'r' ' Add GPG key to running BIOS + reflash' \
-    'a' ' Add GPG key to standalone BIOS image + flash' \
-    'e' ' Replace GPG key(s) in the current ROM + reflash' \
+    'r' ' Add GPG key to running BIOS and reflash' \
+    'a' ' Add GPG key to standalone BIOS image and flash' \
+    'e' ' Replace GPG key(s) in the current ROM and reflash' \
     'l' ' List GPG keys in your keyring' \
     'p' ' Export public GPG key to USB drive' \
     'g' ' Generate GPG keys manually on a USB security token' \
@@ -214,7 +214,7 @@ while true; do
           whiptail --title "The GPG Key Copied Successfully" \
             --msgbox "public-key.asc copied successfully." 16 60
         else
-          whiptail $CONFIG_ERROR_BG_COLOR --title 'ERROR: Copy Failed' \
+          whiptail $BG_COLOR_ERROR --title 'ERROR: Copy Failed' \
             --msgbox "Unable to copy public-key.asc to /media" 16 60
         fi
         umount /media
