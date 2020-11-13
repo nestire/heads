@@ -1,6 +1,8 @@
 # Need to set CB_OUTPUT_FILE before board .config included so
 # that target overrides in x230/x430-flash (eg) are properly handled
 GIT_HASH	:= $(shell git rev-parse HEAD)
+GIT_HASH_SHORT:= $(shell git rev-parse --short HEAD)
+GIT_TAG 	:= $(shell git describe --abbrev=0 --tag)
 GIT_STATUS	:= $(shell \
 	if git diff --exit-code >/dev/null ; then \
 		echo clean ; \

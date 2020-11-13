@@ -82,7 +82,7 @@ ifneq ($(CONFIG_COREBOOT),)
 $(build)/$(BOARD)/$(CB_OUTPUT_FILE): $(build)/$(coreboot_dir)/.build
 	"$(build)/$(coreboot_dir)/cbfstool" "$(dir $<)coreboot.rom" print
 	$(call do-copy,$(dir $<)coreboot.rom,$@)
-	$(call do-copy,$(dir $<)coreboot.rom,$(build)/$(BOARD)/$(GIT_BRANCH)-$(GIT_TAG)-$(GIT_HASH_SHORT).rom)
+	$(call do-copy,$(dir $<)coreboot.rom,$(build)/$(BOARD)/nitropad-$(GIT_TAG)-$(GIT_HASH_SHORT).rom)
 	@touch $@   # update the time stamp
 endif
 
