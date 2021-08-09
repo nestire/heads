@@ -9,7 +9,7 @@ GIT_STATUS	:= $(shell \
 	fi)
 HEADS_GIT_VERSION	:= $(shell git describe --tags --dirty)
 
-CB_OUTPUT_FILE := tianocore-$(BOARD)-$(HEADS_GIT_VERSION).rom
+CB_OUTPUT_FILE := heads-$(BOARD)-$(HEADS_GIT_VERSION).rom
 LB_OUTPUT_FILE := linuxboot-$(BOARD)-$(HEADS_GIT_VERSION).rom
 
 all:
