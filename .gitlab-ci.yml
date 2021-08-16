@@ -22,7 +22,7 @@ variables:
   UPLOAD_FOLDER: "heads"
 
 build-heads-x230:
-  image: registry.git.dotplex.com/nitrokey/heads/heads-build@sha256:3f482128cd7a4f788b6490e2cd74ed35d42d4f44c1fb1bef5e2f23e3a789e6ce
+  image: registry.git.dotplex.com/nitrokey/heads/heads-build@sha256:a59b9f78435cca39e178ca915346934e1f2a43f702e57fb41b7fec8289a86ff3
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push"'
   tags:
@@ -45,7 +45,7 @@ build-heads-x230:
     expire_in: 30 hrs
 
 build-heads-t430:
-  image: registry.git.dotplex.com/nitrokey/heads/heads-build@sha256:3f482128cd7a4f788b6490e2cd74ed35d42d4f44c1fb1bef5e2f23e3a789e6ce
+  image: registry.git.dotplex.com/nitrokey/heads/heads-build@sha256:a59b9f78435cca39e178ca915346934e1f2a43f702e57fb41b7fec8289a86ff3
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push"'
   tags:
