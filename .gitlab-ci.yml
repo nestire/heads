@@ -13,7 +13,7 @@ variables:
   SCRIPTS_REPO: git@git.dotplex.com:nitrokey/gitlab-ci.git
   REPO_USER: nitrokey
   REPO_NAME: heads
-  MAIN_BRANCH: master
+  MAIN_BRANCH: nitropad
   DEVICE_FOLDER: "nitropad"
   COMMON_PULL: "true"
   COMMON_UPLOAD_NIGHTLY: "false"
