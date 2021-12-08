@@ -11,8 +11,9 @@ GIT_STATUS	:= $(shell \
 	fi)
 HEADS_GIT_VERSION	:= $(shell git describe --tags --dirty)
 
-CB_OUTPUT_FILE := heads-$(BOARD)-$(HEADS_GIT_VERSION).rom
-LB_OUTPUT_FILE := linuxboot-$(BOARD)-$(HEADS_GIT_VERSION).rom
+CB_OUTPUT_FILE		:= heads-$(BOARD)-$(HEADS_GIT_VERSION).rom
+CB_BOOTBLOCK_FILE	:= heads-$(BOARD)-$(HEADS_GIT_VERSION).bootblock
+LB_OUTPUT_FILE		:= linuxboot-$(BOARD)-$(HEADS_GIT_VERSION).rom
 
 all:
 -include .config
@@ -33,7 +34,7 @@ log_dir		:= $(build)/log
 
 # Controls how many parallel jobs are invoked in subshells
 CPUS		?= $(shell nproc)
-#MAKE_JOBS	?= -j$(CPUS) --max-load 16
+MAKE_JOBS	?= -j$(CPUS) --max-load 16
 
 # Create the log directory if it doesn't already exist
 BUILD_LOG := $(shell mkdir -p "$(log_dir)" )
@@ -125,6 +126,10 @@ BOARD_LOG	:= $(shell \
 	echo "$(DATE) $(GIT_HASH) $(GIT_STATUS)" > "$(HASHES)" ; \
 )
 
+ifeq "y" "$(CONFIG_LINUX_BUNDLED)"
+# Create empty initrd for initial kernel "without" initrd.
+$(shell cpio -o < /dev/null > $(build)/$(BOARD)/initrd.cpio)
+endif
 
 # If V is set in the environment, do not redirect the tee
 # command to /dev/null.
@@ -169,7 +174,7 @@ heads_cc	:= $(CROSS)gcc \
 	-fdebug-prefix-map=$(pwd)=heads \
 	-gno-record-gcc-switches \
 	-D__MUSL__ \
-	-I$(INSTALL)/include \
+	-isystem $(INSTALL)/include \
 	-L$(INSTALL)/lib \
 
 CROSS_TOOLS_NOCC := \
@@ -193,7 +198,12 @@ CROSS_TOOLS := \
 
 
 ifeq ($(CONFIG_COREBOOT), y)
+
 all: $(build)/$(BOARD)/$(CB_OUTPUT_FILE)
+ifneq ($(CONFIG_COREBOOT_BOOTBLOCK),)
+all: $(build)/$(BOARD)/$(CB_BOOTBLOCK_FILE)
+endif
+
 else ifeq ($(CONFIG_LINUXBOOT), y)
 all: $(build)/$(BOARD)/$(LB_OUTPUT_FILE)
 else
@@ -291,20 +301,21 @@ define define_module =
   $(eval $1_base_dir = $(or $($1_base_dir),$($1_dir)))
 
   ifneq ("$($1_repo)","")
+    $(eval $1_patch_name = $1$(if $($1_patch_version),-$($1_patch_version),))
     # Checkout the tree instead and touch the canary file so that we know
     # that the files are all present. No signature hashes are checked in
     # this case, since we don't have a stable version to compare against.
     $(build)/$($1_base_dir)/.canary:
 	git clone $($1_repo) "$(build)/$($1_base_dir)"
 	cd $(build)/$($1_base_dir) && git submodule update --init --checkout
-	if [ -r patches/$1.patch ]; then \
+	if [ -r patches/$($1_patch_name).patch ]; then \
 		( cd $(build)/$($1_base_dir) ; patch -p1 ) \
-			< patches/$1.patch \
+			< patches/$($1_patch_name).patch \
 			|| exit 1 ; \
 	fi
-	if [ -d patches/$1 ] && \
-	   [ -r patches/$1 ] ; then \
-		for patch in patches/$1/*.patch ; do \
+	if [ -d patches/$($1_patch_name) ] && \
+	   [ -r patches/$($1_patch_name) ] ; then \
+		for patch in patches/$($1_patch_name)/*.patch ; do \
 			echo "Applying patch file : $$$$patch " ;  \
 			( cd $(build)/$($1_base_dir) ; patch -p1 ) \
 				< $$$$patch \
@@ -313,6 +324,8 @@ define define_module =
 	fi
 	@touch "$$@"
   else
+    $(eval $1_patch_version ?= $($1_version))
+    $(eval $1_patch_name = $1-$($1_patch_version))
     # Fetch and verify the source tar file
     # wget creates it early, so we have to cleanup if it fails
     $(packages)/$($1_tar):
@@ -331,14 +344,14 @@ define define_module =
     $(build)/$($1_base_dir)/.canary: $(packages)/.$1-$($1_version)_verify
 	mkdir -p "$$(dir $$@)"
 	tar -xf "$(packages)/$($1_tar)" $(or $($1_tar_opt),--strip 1) -C "$$(dir $$@)"
-	if [ -r patches/$1-$($1_version).patch ]; then \
+	if [ -r patches/$($1_patch_name).patch ]; then \
 		( cd $$(dir $$@) ; patch -p1 ) \
-			< patches/$1-$($1_version).patch \
+			< patches/$($1_patch_name).patch \
 			|| exit 1 ; \
 	fi
-	if [ -d patches/$1-$($1_version) ] && \
-	   [ -r patches/$1-$($1_version) ] ; then \
-		for patch in patches/$1-$($1_version)/*.patch ; do \
+	if [ -d patches/$($1_patch_name) ] && \
+	   [ -r patches/$($1_patch_name) ] ; then \
+		for patch in patches/$($1_patch_name)/*.patch ; do \
 			echo "Applying patch file : $$$$patch " ;  \
 			( cd $$(dir $$@) ; patch -p1 ) \
 				< $$$$patch \
@@ -481,6 +494,7 @@ bin_modules-$(CONFIG_TPMTOTP) += tpmtotp
 bin_modules-$(CONFIG_PCIUTILS) += pciutils
 bin_modules-$(CONFIG_FLASHROM) += flashrom
 bin_modules-$(CONFIG_CRYPTSETUP) += cryptsetup
+bin_modules-$(CONFIG_CRYPTSETUP2) += cryptsetup2
 bin_modules-$(CONFIG_GPG) += gpg
 bin_modules-$(CONFIG_GPG2) += gpg2
 bin_modules-$(CONFIG_PINENTRY) += pinentry
@@ -518,7 +532,7 @@ endif
 $(COREBOOT_UTIL_DIR)/cbmem/cbmem \
 $(COREBOOT_UTIL_DIR)/superiotool/superiotool \
 $(COREBOOT_UTIL_DIR)/inteltool/inteltool \
-: $(build)/$(coreboot_base_dir)/.canary
+: $(build)/$(coreboot_base_dir)/.canary musl-cross
 	+$(call do,MAKE,$(notdir $@),\
 		$(MAKE) -C "$(dir $@)" $(CROSS_TOOLS) \
 	)
@@ -569,6 +583,12 @@ $(build)/$(initrd_dir)/initrd.cpio.xz: $(initrd-y)
 		rm "$@.tmp" ; \
 	fi
 	@sha256sum "$(@:$(pwd)/%=%)" | tee -a "$(HASHES)"
+
+#
+# At the moment PowerPC can only load initrd bundled with the kernel.
+#
+bundle-$(CONFIG_LINUX_BUNDLED)	+= $(build)/$(BOARD)/$(LINUX_IMAGE_FILE).bundled
+all: $(bundle-y)
 
 #
 # The heads.cpio is built from the initrd directory in the

@@ -9,6 +9,14 @@ linux_hash := 9c4ebf21fe949f80fbcfbbd6e7fe181040d325e89475e230ab53ef01f9d55605
 else ifeq "$(CONFIG_LINUX_VERSION)" "5.4.69"
 linux_version := 5.4.69
 linux_hash := a8b31d716b397303a183e42ad525ff2871024a43e3ea530d0fdf73b7f9d27da7
+#
+# linuxboot systems should *NOT* use 5.10.5 until a proper review has
+# been done. This is because `0000-efi_bds.patch` did not cleanly port
+# from 5.4.69 to 5.10.5 which directly affects linuxboot systems.
+#
+else ifeq "$(CONFIG_LINUX_VERSION)" "5.10.5"
+linux_version := 5.10.5
+linux_hash := 3991a9e16a187d78d5f414d89236ae5d7f404a69e60c4c42a9d262ee19612ef4
 else
 $(error "$(BOARD): does not specify linux kernel version under CONFIG_LINUX_VERSION")
 endif 
@@ -164,6 +172,15 @@ $(build)/$(BOARD)/bzImage: $(build)/$(linux_dir)/.build
 	@touch $@ # force a timestamp update
 	@sha256sum "$@" | tee -a "$(HASHES)"
 
+# Build kernel second time, now that initrd is built.
+$(build)/$(BOARD)/$(LINUX_IMAGE_FILE).bundled: \
+	$(build)/$(initrd_dir)/initrd.cpio.xz \
+	$(build)/$(BOARD)/$(LINUX_IMAGE_FILE)
+	xz --decompress --stdout --force "$<" > $(build)/$(initrd_dir)/initrd.cpio
+	$(MAKE) -C "$(build)/$(linux_dir)" $(linux_target)
+	$(call do-copy,$(build)/$(linux_dir)/$(linux_output),$@)
+	@touch $@ # force a timestamp update
+	@sha256sum "$@" | tee -a "$(HASHES)"
 
 # menuconfig target allows us to easily reconfigure this Linux kernel
 # Afterwars make linux.saveconfig to generate a minimal config from it

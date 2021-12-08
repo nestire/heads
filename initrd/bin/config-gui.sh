@@ -14,7 +14,7 @@ while true; do
     unset param
   else
     unset menu_choice
-    whiptail --clear --title "Config Management Menu" \
+    whiptail $BG_COLOR_MAIN_MENU --clear --title "Config Management Menu" \
     --menu "This menu lets you change settings for the current BIOS session.\n\nAll changes will revert after a reboot,\n\nunless you also save them to the running BIOS." 20 90 10 \
     'b' ' Change the /boot device' \
     's' ' Save the current configuration to the running BIOS' \
@@ -31,7 +31,11 @@ while true; do
     ;;
     "b" )
       CURRENT_OPTION=`grep 'CONFIG_BOOT_DEV=' /tmp/config | tail -n1 | cut -f2 -d '=' | tr -d '"'`
-      fdisk -l | grep "Disk" | cut -f2 -d " " | cut -f1 -d ":" > /tmp/disklist.txt
+      if ! fdisk -l | grep "Disk /dev/" | cut -f2 -d " " | cut -f1 -d ":" > /tmp/disklist.txt ; then
+        whiptail $BG_COLOR_ERROR --title 'ERROR: No bootable devices found' \
+          --msgbox "    $ERROR\n\n" 16 60
+        exit 1
+      fi
       # filter out extraneous options
       > /tmp/boot_device_list.txt
       for i in `cat /tmp/disklist.txt`; do
@@ -95,7 +99,7 @@ while true; do
     ;;
     "r" )
       # prompt for confirmation
-      if (whiptail --title 'Reset Configuration?' \
+      if (whiptail $BG_COLOR_WARNING --title 'Reset Configuration?' \
            --yesno "This will clear all GPG keys, clear boot signatures and checksums,
                   \nreset the /boot device, clear/reset the TPM (if present),
                   \nand reflash your BIOS with the cleaned configuration.

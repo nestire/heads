@@ -1,5 +1,10 @@
 modules-$(CONFIG_COREBOOT) += coreboot
 
+ifeq "$(CONFIG_COREBOOT)" "y"
+
+CONFIG_COREBOOT_ROM			?= coreboot.rom
+CONFIG_COREBOOT_BOOTBLOCK	?=
+
 ifeq "$(CONFIG_COREBOOT_VERSION)" "4.8.1"
 	coreboot_version := 4.8.1
 	coreboot_hash := f0ddf4db0628c1fe1e8348c40084d9cbeb5771400c963fd419cda3995b69ad23
@@ -9,10 +14,15 @@ else ifeq "$(CONFIG_COREBOOT_VERSION)" "4.11"
 	coreboot_hash := 97fd859b4c39a25534fe33c30eb86e54a233952e08a024c55858d11598a8ad87
 	coreboot-blobs_hash := aa7855c5bd385b3360dadc043ea6bc93f564e6e4840d9b3ee5b9e696bbd055db
 	coreboot_depends := $(if $(CONFIG_PURISM_BLOBS), purism-blobs)
-else ifeq "$(CONFIG_COREBOOT_VERSION)" "4.12"
-	coreboot_version := 4.12
-	coreboot_hash := edcad000ee9b73183c396ea76155629b3d27c693e0f1ae83e3424c4d936e2be2
-	coreboot-blobs_hash := 4735ee6850d55d1e65dee8b08cc9b28b8af00b42acf31365f5d9545406579104
+else ifeq "$(CONFIG_COREBOOT_VERSION)" "4.13"
+	coreboot_version := 4.13
+	coreboot_hash := 4779da645a25ddebc78f1bd2bd0b740fb1e6479572648d4650042a2b9502856a
+	coreboot-blobs_hash := 060656b46a7859d038ddeec3f7e086e85f146a50b280c4babec23c1188264dc8
+	coreboot_depends := $(if $(CONFIG_PURISM_BLOBS), purism-blobs)
+else ifeq "$(CONFIG_COREBOOT_VERSION)" "4.14"
+	coreboot_version := 4.14
+	coreboot_hash := d907379b727561d7ddd1d80b2fabaa373db00c9805719116f591cbc948173c6e
+	coreboot-blobs_hash := 9ee2fe5ba37d0e214000b8655acf8922de6df792adb75790559db4c160847921
 	coreboot_depends := $(if $(CONFIG_PURISM_BLOBS), purism-blobs)
 else
 	$(error "$(BOARD): does not specify coreboot version under CONFIG_COREBOOT_VERSION")
@@ -65,12 +75,17 @@ coreboot_target := \
 	CFLAGS_x86_64="$(EXTRA_FLAGS)" \
 	$(MAKE_JOBS)
 
-coreboot_output := coreboot.rom
+coreboot_output := $(CONFIG_COREBOOT_ROM)
+coreboot_output += $(CONFIG_COREBOOT_BOOTBLOCK)
 coreboot_depend += linux initrd $(musl_dep)
 
-$(build)/$(coreboot_dir)/.configured: $(COREBOOT_IASL)
+COREBOOT_TOOLCHAIN="$(build)/$(coreboot_base_dir)/.xcompile"
+$(COREBOOT_TOOLCHAIN): $(build)/$(coreboot_base_dir)/.canary
+	$(MAKE) -C "$(build)/$(coreboot_base_dir)" CPUS=$(CPUS) crossgcc-i386
+
+$(build)/$(coreboot_dir)/.configured: $(COREBOOT_IASL) $(COREBOOT_TOOLCHAIN)
 $(COREBOOT_IASL): $(build)/$(coreboot_base_dir)/.canary
-	$(MAKE) -C "$(build)/$(coreboot_base_dir)" CPUS=$$CPUS iasl
+	$(MAKE) -C "$(build)/$(coreboot_base_dir)" CPUS=$(CPUS) iasl
 
 # Force a rebuild if the inputs have changed
 $(build)/$(coreboot_dir)/.build: \
@@ -79,11 +94,20 @@ $(build)/$(coreboot_dir)/.build: \
 
 # This produces a ROM image that is written with the flashrom program
 ifneq ($(CONFIG_COREBOOT),)
+
 $(build)/$(BOARD)/$(CB_OUTPUT_FILE): $(build)/$(coreboot_dir)/.build
+	# Use coreboot.rom, because custom output files might not be processed by cbfstool
 	"$(build)/$(coreboot_dir)/cbfstool" "$(dir $<)coreboot.rom" print
-	$(call do-copy,$(dir $<)coreboot.rom,$@)
+	$(call do-copy,$(dir $<)$(CONFIG_COREBOOT_ROM),$@)
 	$(call do-copy,$(dir $<)coreboot.rom,$(build)/$(BOARD)/nitropad-$(GIT_TAG)-$(GIT_HASH_SHORT).rom)
 	@touch $@   # update the time stamp
+
+ifneq ($(CONFIG_COREBOOT_BOOTBLOCK),)
+$(build)/$(BOARD)/$(CB_BOOTBLOCK_FILE): $(build)/$(coreboot_dir)/.build
+	$(call do-copy,$(dir $<)$(CONFIG_COREBOOT_BOOTBLOCK),$@)
+	@touch $@   # update the time stamp
+endif
+
 endif
 
 #
@@ -129,4 +153,5 @@ endif
 coreboot-blobs_output := .built
 coreboot-blobs_configure := echo -e 'all:\n\ttouch .built' > Makefile
 
+endif
 endif

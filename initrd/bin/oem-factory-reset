@@ -12,8 +12,8 @@ export TOP_PID=$$
 CLEAR="--clear"
 CONTINUE="--yes-button Continue"
 CANCEL="--no-button Cancel"
-HEIGHT="150"
-WIDTH="220"
+HEIGHT="30"
+WIDTH="90"
 
 USER_PIN_DEF=123456
 ADMIN_PIN_DEF=12345678
@@ -51,7 +51,7 @@ whiptail_error()
     if [ "$msg" = "" ]; then
         die "whiptail error: An error msg is required"
     fi
-    whiptail --msgbox "${msg}\n\n" $WIDTH $HEIGHT $BG_COLOR_ERROR --title "Error"
+    whiptail $BG_COLOR_ERROR --msgbox "${msg}\n\n" $HEIGHT $WIDTH $BG_COLOR_ERROR --title "Error"
 }
 
 whiptail_error_die() 
@@ -289,7 +289,7 @@ $TPM_STR
           * Sign all of the files in /boot with the new GPG key\n\n
         It requires that you already have an OS installed on a\n
         dedicated /boot partition. Do you wish to continue?\n" \
-        $WIDTH $HEIGHT $CONTINUE $CANCEL $CLEAR $bg_color --title "$title_text" ; then
+        $HEIGHT $WIDTH $CONTINUE $CANCEL $CLEAR $bg_color --title "$title_text" ; then
     exit 1
 fi
 
@@ -341,11 +341,11 @@ if [ "$prompt_output" == "y" \
 	};done
 
 	echo -e "\nEnter Comment (Optional, to distinguish this key from others with same previous attributes. Must be smaller then 60 characters):"
-	read -r GPG_USER_MAIL
-	while [[ ${#gpgcard_comment} -gt 60 ]]; do
+	read -r GPG_USER_COMMENT
+	while [[ ${#GPG_USER_COMMENT} -gt 60 ]]; do
 	{
 		echo -e "\nEnter Comment (Optional, to distinguish this key from others with same previous attributes. Must be smaller then 60 characters):"
-		read -r GPG_USER_MAIL
+		read -r GPG_USER_COMMENT
 	};done
 fi
 
@@ -420,7 +420,7 @@ rm /.gnupg/*.kbx 2>/dev/null
 gpg --list-keys >/dev/null 2>&1
 
 ## reset the GPG Key
-echo -e "\nResetting GPG Key...\n(this will take a minute or two)\n"
+echo -e "\nResetting GPG Key...\n(this will take around 3 minutes...)\n"
 gpg_key_reset
 
 # parse name of generated key
@@ -516,6 +516,6 @@ whiptail --msgbox "
     After rebooting, you will need to generate new TOTP/HOTP secrets\n
     when prompted in order to complete the setup process.\n\n
     Press Enter to reboot.\n" \
-    $WIDTH $HEIGHT --title "OEM Factory Reset Complete"
+    $HEIGHT $WIDTH --title "OEM Factory Reset Complete"
 
 reboot

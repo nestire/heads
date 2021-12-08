@@ -63,7 +63,10 @@ gpg_flash_rom() {
 
   if (whiptail --title 'BIOS Flashed Successfully' \
       --yesno "Would you like to update the checksums and sign all of the files in /boot?\n\nYou will need your GPG key to continue and this will modify your disk.\n\nOtherwise the system will reboot immediately." 16 90) then
-    update_checksums
+    if ! update_checksums ; then
+      whiptail $BG_COLOR_ERROR --title 'ERROR' \
+        --msgbox "Failed to update checksums / sign default config" 16 90
+    fi
   else
     /bin/reboot
   fi
@@ -83,10 +86,10 @@ gpg_post_gen_mgmt() {
     cp "/tmp/${GPG_GEN_KEY}.asc" "/media/${GPG_GEN_KEY}.asc"
     if [ $? -eq 0 ]; then
       whiptail --title "The GPG Key Copied Successfully" \
-        --msgbox "${GPG_GEN_KEY}.asc copied successfully." 16 60
+        --msgbox "${GPG_GEN_KEY}.asc copied successfully." 16 90
     else
       whiptail $BG_COLOR_ERROR --title 'ERROR: Copy Failed' \
-        --msgbox "Unable to copy ${GPG_GEN_KEY}.asc to /media" 16 60
+        --msgbox "Unable to copy ${GPG_GEN_KEY}.asc to /media" 16 90
     fi
     umount /media
   fi
@@ -137,7 +140,7 @@ gpg_add_key_reflash() {
 
 while true; do
   unset menu_choice
-  whiptail --clear --title "GPG Management Menu" \
+  whiptail $BG_COLOR_MAIN_MENU --clear --title "GPG Management Menu" \
     --menu 'Select the GPG function to perform' 20 90 10 \
     'r' ' Add GPG key to running BIOS and reflash' \
     'a' ' Add GPG key to standalone BIOS image and flash' \
@@ -177,7 +180,7 @@ while true; do
           fi
           cp "$ROM" /tmp/gpg-gui.rom
 
-          if (whiptail --title 'Flash ROM?' \
+          if (whiptail $BG_COLOR_WARNING --title 'Flash ROM?' \
               --yesno "This will replace your old ROM with $ROM\n\nDo you want to proceed?" 16 90) then
             gpg_flash_rom
           else
@@ -201,7 +204,7 @@ while true; do
     "l" )
       GPG_KEYRING=`gpg -k`
       whiptail --title 'GPG Keyring' \
-        --msgbox "${GPG_KEYRING}" 16 60
+        --msgbox "${GPG_KEYRING}" 16 90
     ;;
     "p" )
         if (whiptail --title 'Export Public Key(s) to USB drive?' \
