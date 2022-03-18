@@ -40,7 +40,7 @@ while true; do
             mkdir /tmp/verified_rom
             unzip $ROM -d /tmp/verified_rom
             # check file integrity
-            if sha256sum -cs /tmp/verified_rom/sha256sum.txt ; then
+						if (cd /tmp/verified_rom/ && sha256sum -cs /tmp/verified_rom/sha256sum.txt) ; then
               ROM="$(head -n1 /tmp/verified_rom/sha256sum.txt | cut -d ' ' -f 3)"
             else
               whiptail --title 'ROM Integrity Check Failed! ' \
