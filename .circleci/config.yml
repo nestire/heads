@@ -11,17 +11,14 @@ commands:
       - run:
           name: Install dependencies
           command: |
+            ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg gawk iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo
       - run:
           name: Make Board
           command: |
             rm -rf build/<<parameters.target>>/* build/log/* && make V=1 BOARD=<<parameters.target>> <<parameters.subcommand>> || touch ./tmpDir/failed_build
           no_output_timeout: 3h
-      - run:
-          name: Output build failing logs
-          command: |
-            if [[ -f ./tmpDir/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Not failing. Continuing..."; fi \
       - run:
           name: Output hashes
           command: |
@@ -29,21 +26,26 @@ commands:
       - run:
           name: Archiving build logs.
           command: |
-             tar zcvf build/<<parameters.target>>/logs.tar.gz build/log/*
+             tar zcvf build/<<parameters.target>>/logs.tar.gz $(find build/ -name "*.log")
+      - run:
+          name: Output build failing logs
+          command: |
+            if [[ -f ./tmpDir/failed_build ]]; then find ./build/ -name "*.log" -type f -mmin -1|while read log; do echo ""; echo '==>' "$log" '<=='; echo ""; cat $log;done; exit 1;else echo "Step hasn't failed. Continuing with next step..."; fi \
       - store_artifacts:
           path: build/<<parameters.target>>
 
 jobs:
   prep_env:
     docker:
-      - image: debian:10
+      - image: debian:11
     resource_class: large
     steps:
       - run:
           name: Install dependencies
           command: |
+            ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime 
             apt update
-            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract
+            apt install -y build-essential zlib1g-dev uuid-dev libdigest-sha-perl libelf-dev bc bzip2 bison flex git gnupg gawk iasl m4 nasm patch python python2 python3 wget gnat cpio ccache pkg-config cmake libusb-1.0-0-dev autoconf texinfo ncurses-dev doxygen graphviz udev libudev1 libudev-dev automake libtool rsync innoextract sudo
       - checkout
 
       - run:
@@ -93,6 +95,16 @@ jobs:
           command: |
             ./blobs/xx30/download_clean_me.sh -m $(readlink -f ./blobs/xx30/me_cleaner.py)
 
+      - run:
+          name: Download and extract t530 vbios roms for dgpu boards
+          command: |
+            ./blobs/xx30/vbios_t530.sh
+
+      - run:
+          name: Download and extract w530 vbios roms for dgpu boards
+          command: |
+            ./blobs/xx30/vbios_w530.sh
+
       - persist_to_workspace:
           root: ~/
           paths:
@@ -100,7 +112,7 @@ jobs:
 
   build_and_persist:
     docker:
-      - image: debian:10
+      - image: debian:11
     resource_class: large
     parameters:
       target:
@@ -120,7 +132,8 @@ jobs:
 
   build:
     docker:
-      - image: debian:10
+      - image: debian:11
+    resource_class: large
     parameters:
       target:
         type: string
@@ -135,7 +148,8 @@ jobs:
 
   save_cache:
     docker:
-      - image: debian:10
+      - image: debian:11
+    resource_class: large
     steps:
       - attach_workspace:
           at: ~/
@@ -146,24 +160,26 @@ jobs:
           paths:
             - crossgcc
             - build/musl-cross-38e52db8358c043ae82b346a2e6e66bc86a53bc1
+            - packages
       - save_cache:
           #Generate cache for the same coreboot mnd musl-cross-make modules definition if hash is not previously existing
           #CircleCI removed their wildcard support, so we have to list precise versions to cache in directory names
           key: heads-coreboot-musl-cross-{{ checksum "./tmpDir/coreboot_musl-cross.sha256sums" }}{{ .Environment.CACHE_VERSION }}
           paths:
+            - crossgcc
+            - build/musl-cross-38e52db8358c043ae82b346a2e6e66bc86a53bc1
+            - packages
             - build/coreboot-4.11
             - build/coreboot-4.13
             - build/coreboot-4.14
             - build/coreboot-4.15
-            - crossgcc
-            - build/musl-cross-38e52db8358c043ae82b346a2e6e66bc86a53bc1
       - save_cache:
           #Generate cache for the exact same modules definitions if hash is not previously existing
           key: heads-modules-and-patches-{{ checksum "./tmpDir/all_modules_and_patches.sha256sums" }}{{ .Environment.CACHE_VERSION }}
           paths:
-            - packages
             - crossgcc
             - build
+            - packages
             - install
 
 workflows:
@@ -178,9 +194,9 @@ workflows:
 
       # Prerequisites
       - build_and_persist:
-          name: heads_musl-cross
+          name: bootstrap_musl-cross-make
           target: x230-hotp-maximized
-          subcommand: musl-cross
+          subcommand: bootstrap musl-cross
           requires:
             - prep_env
 
@@ -190,19 +206,29 @@ workflows:
           target: x230-hotp-maximized
           subcommand: ""
           requires:
-            - heads_musl-cross
+            - bootstrap_musl-cross-make
 
-      # Coreboot 4.11
-      #- build_and_persist:
-      #    name: librem_l1um
-      #    target: librem_l1um
-      #    subcommand: ""
-      #    requires:
-      #      - x230-hotp-maximized
-
-      - save_cache:
+      # Coreboot 4.15
+      - build_and_persist:
+          name: librem_14
+          target: librem_14
+          subcommand: ""
           requires:
             - x230-hotp-maximized
+
+      # Coreboot 4.11
+      - build_and_persist:
+          name: kgpe-d16_workstation
+          target: kgpe-d16_workstation
+          subcommand: ""
+          requires:
+            - librem_14
+
+      #Cache one workspace per Coreboot version, ideally the boards including the highest number of modules, since not rebuilt across builds.
+      #Below, 4.11, 4.13, 4.15
+      - save_cache:
+          requires:
+            - kgpe-d16_workstation
 
 #
 #
@@ -295,6 +321,13 @@ workflows:
             - x230-hotp-maximized
 
       - build:
+          name: x230-hotp-maximized_usb-kb
+          target: x230-hotp-maximized_usb-kb
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
+
+      - build:
           name: t430-hotp-maximized
           target: t430-hotp-maximized
           subcommand: ""
@@ -302,8 +335,21 @@ workflows:
             - x230-hotp-maximized
 
       - build:
+          name: x230-maximized
+          target: x230-maximized
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
+      - build:
           name: t530-hotp-maximized
           target: t530-hotp-maximized
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
+
+      - build:
+          name: t530-dgpu-hotp-maximized
+          target: t530-dgpu-hotp-maximized
           subcommand: ""
           requires:
             - x230-hotp-maximized
@@ -315,6 +361,20 @@ workflows:
           requires:
             - x230-hotp-maximized
 
+      - build:
+          name: w530-dgpu-K1000m-hotp-maximized
+          target: w530-dgpu-K1000m-hotp-maximized
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized  
+
+      - build:
+          name: w530-dgpu-K2000m-hotp-maximized
+          target: w530-dgpu-K2000m-hotp-maximized
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized  
+            
       - build:
           name: t430-maximized
           target: t430-maximized
@@ -330,8 +390,29 @@ workflows:
             - x230-hotp-maximized
 
       - build:
+          name: t530-dgpu-maximized
+          target: t530-dgpu-maximized
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
+
+      - build:
           name: w530-maximized
           target: w530-maximized
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
+
+      - build:
+          name: w530-dgpu-K1000m-maximized
+          target: w530-dgpu-K1000m-maximized
+          subcommand: ""
+          requires:
+            - x230-hotp-maximized
+
+      - build:
+          name: w530-dgpu-K2000m-maximized
+          target: w530-dgpu-K2000m-maximized
           subcommand: ""
           requires:
             - x230-hotp-maximized
@@ -349,34 +430,76 @@ workflows:
           subcommand: ""
           requires:
             - x230-hotp-maximized
-      #KGPE-D16 turned off because CircleCI built time needs to be optimized. Kernel doesn't seem to enforce MAKE_JOBS properly
-      #- build:
-      #    name: kgpe-d16_workstation-usb_keyboard
-      #    target: kgpe-d16_workstation-usb_keyboard
-      #    subcommand: ""
-      #    requires:
-      #      - librem_l1um
 
-      #- build:
-      #    name: kgpe-d16_server
-      #    target: kgpe-d16_server
-      #    subcommand: ""
-      #    requires:
-      #      - librem_l1um
+      - build:
+          name: librem_13v2
+          target: librem_13v2
+          subcommand: ""
+          requires:
+            - librem_14
 
-      #- build:
-      #    name: kgpe-d16_server-whiptail
-      #    target: kgpe-d16_server-whiptail
-      #    subcommand: ""
-      #    requires:
-      #      - librem_l1um
+      - build:
+          name: librem_15v3
+          target: librem_15v3
+          subcommand: ""
+          requires:
+            - librem_14
 
-      #- build:
-      #    name: kgpe-d16_workstation
-      #    target: kgpe-d16_workstation
-      #    subcommand: ""
-      #    requires:
-      #      - librem_l1um
+      - build:
+          name: librem_13v4
+          target: librem_13v4
+          subcommand: ""
+          requires:
+            - librem_14
+
+      - build:
+          name: librem_15v4
+          target: librem_15v4
+          subcommand: ""
+          requires:
+            - librem_14
+
+      - build:
+          name: librem_mini
+          target: librem_mini
+          subcommand: ""
+          requires:
+            - librem_14
+
+      - build:
+          name: librem_mini_v2
+          target: librem_mini_v2
+          subcommand: ""
+          requires:
+            - librem_14
+
+      - build:
+          name: kgpe-d16_workstation-usb_keyboard
+          target: kgpe-d16_workstation-usb_keyboard
+          subcommand: ""
+          requires:
+            - kgpe-d16_workstation
+
+      - build:
+          name: kgpe-d16_server
+          target: kgpe-d16_server
+          subcommand: ""
+          requires:
+            - kgpe-d16_workstation
+
+      - build:
+          name: kgpe-d16_server-whiptail
+          target: kgpe-d16_server-whiptail
+          subcommand: ""
+          requires:
+            - kgpe-d16_workstation
+
+      - build:
+          name: librem_l1um
+          target: librem_l1um
+          subcommand: ""
+          requires:
+            - kgpe-d16_workstation
 
 ########################
 ########################
