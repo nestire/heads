@@ -1,5 +1,15 @@
 modules-y += linux
 
+ifeq "$(CONFIG_TARGET_ARCH)" "x86"
+	LINUX_ARCH			:= x86
+	LINUX_IMAGE_FILE	:= bzImage
+else ifeq "$(CONFIG_TARGET_ARCH)" "ppc64"
+	LINUX_ARCH			:= powerpc
+	LINUX_IMAGE_FILE	:= zImage
+else
+	$(error "$(CONFIG_TARGET_ARCH) target isn't supported by this module")
+endif
+
 ifeq "$(CONFIG_LINUX_VERSION)" "4.14.62"
 linux_version := 4.14.62
 linux_hash := 51ca4d7e8ee156dc0f19bc7768915cfae41dbb0b4f251e4fa8b178c5674c22ab
@@ -9,6 +19,10 @@ linux_hash := 9c4ebf21fe949f80fbcfbbd6e7fe181040d325e89475e230ab53ef01f9d55605
 else ifeq "$(CONFIG_LINUX_VERSION)" "5.4.69"
 linux_version := 5.4.69
 linux_hash := a8b31d716b397303a183e42ad525ff2871024a43e3ea530d0fdf73b7f9d27da7
+else ifeq "$(CONFIG_LINUX_VERSION)" "5.5-openpower"
+linux_version := 5.5
+linux_patch_version := 5.5-openpower
+linux_hash := a6fbd4ee903c128367892c2393ee0d9657b6ed3ea90016d4dc6f1f6da20b2330
 #
 # linuxboot systems should *NOT* use 5.10.5 until a proper review has
 # been done. This is because `0000-efi_bds.patch` did not cleanly port
@@ -41,19 +55,21 @@ $(build)/$(linux_dir)/.configured: $(linux_kconfig)
 
 linux_configure := \
 	mkdir -p "$(build)/$(linux_dir)" \
-	&& cp "$(pwd)/$(linux_kconfig)" "$(build)/$(linux_dir)/.config" \
+	&& $(call install_config,$(pwd)/$(linux_kconfig),$(build)/$(linux_dir)/.config) \
 	&& $(MAKE) -C .. \
+		ARCH="$(LINUX_ARCH)" \
 		CROSS_COMPILE="$(CROSS)" \
 		O="$(build)/$(linux_dir)" \
 		olddefconfig \
 
-linux_output += arch/x86/boot/bzImage
+linux_output += arch/$(LINUX_ARCH)/boot/$(LINUX_IMAGE_FILE)
 
 # Once we have extracted the kernel tar file, install the headers
 # so that other submodules can make use of them.
 $(INSTALL)/include/linux/limits.h: $(build)/$(linux_base_dir)/.canary
 	$(MAKE) \
 		-C "$(build)/$(linux_base_dir)" \
+		ARCH="$(LINUX_ARCH)" \
 		INSTALL_HDR_PATH="$(INSTALL)" \
 		O="$(linux_dir)" \
 		KCONFIG_CONFIG="$(pwd)/$(linux_kconfig)" \
@@ -117,6 +133,7 @@ EXTRA_FLAGS := -fdebug-prefix-map=$(pwd)=heads -gno-record-gcc-switches
 
 linux_target := \
 	O="$(build)/$(linux_dir)" \
+	ARCH="$(LINUX_ARCH)" \
 	CROSS_COMPILE="$(CROSS)" \
 	AFLAGS_KERNEL="$(EXTRA_FLAGS)" \
 	CFLAGS_KERNEL="$(EXTRA_FLAGS)" \
@@ -167,10 +184,10 @@ $(build)/$(BOARD)/modules.cpio: $(build)/$(linux_dir)/.build
 	@$(RM) -rf "$(module_initrd_dir)"
 
 
-# The output of the linux.intermediate is the bzImage in the
-# linus build directory.  We need to copy it into our board
+# The output of the linux.intermediate is usually the bzImage in the
+# linux build directory.  We need to copy it into our board
 # specific directory for ease of locating it later.
-$(build)/$(BOARD)/bzImage: $(build)/$(linux_dir)/.build
+$(build)/$(BOARD)/$(LINUX_IMAGE_FILE): $(build)/$(linux_dir)/.build
 	$(call do-copy,$(dir $<)/$(linux_output),$@)
 	@touch $@ # force a timestamp update
 	@sha256sum "$@" | tee -a "$(HASHES)"
